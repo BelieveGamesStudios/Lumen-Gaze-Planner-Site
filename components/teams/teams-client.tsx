@@ -5,11 +5,23 @@ import type { Profile, Team, TeamInvitation } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Users, Mail, Check, X } from "lucide-react"
+import { Users, Mail, Check, X, Trash } from "lucide-react"
 import { CreateTeamDialog } from "./create-team-dialog"
 import { TeamDetailsDialog } from "./team-details-dialog"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog"
+import { useToast } from "@/hooks/use-toast"
 
 interface TeamsClientProps {
   userId: string
@@ -66,6 +78,23 @@ export function TeamsClient({
       setPendingInvitations((prev) => prev.filter((i) => i.id !== invitationId))
     } catch (error) {
       console.error("Failed to reject invitation:", error)
+    }
+  }
+
+  const { toast } = useToast()
+
+  const handleDeleteTeam = async (teamId: string) => {
+    try {
+      // remove members first to avoid FK issues
+      await supabase.from("team_members").delete().eq("team_id", teamId)
+      const { error } = await supabase.from("teams").delete().eq("id", teamId)
+      if (error) throw error
+      setTeams((prev) => prev.filter((t) => t.id !== teamId))
+      toast({ title: "Team deleted" })
+      router.refresh()
+    } catch (err) {
+      console.error("Failed to delete team:", err)
+      toast({ title: "Failed to delete team", variant: "destructive" })
     }
   }
 
@@ -153,7 +182,42 @@ export function TeamsClient({
                     <CardTitle>{team.name}</CardTitle>
                     {team.description && <CardDescription className="mt-2">{team.description}</CardDescription>}
                   </div>
-                  {isTeamOwner(team) && <Badge variant="default">Owner</Badge>}
+                  <div className="flex items-center gap-2">
+                    {isTeamOwner(team) && <Badge variant="default">Owner</Badge>}
+                    {isTeamOwner(team) && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={(e) => e.stopPropagation()}
+                            title="Delete team"
+                          >
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete team</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete "{team.name}"? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={async (e: any) => {
+                                e.stopPropagation()
+                                await handleDeleteTeam(team.id)
+                              }}
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
