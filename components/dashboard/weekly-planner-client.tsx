@@ -99,10 +99,11 @@ export function WeeklyPlannerClient({
     setWeeklyCompletions(newCompletions)
   }
 
-  const handleAddTask = async (weekNumber: number, title: string) => {
+  const handleAddTask = async (weekNumber: number, title: string, description?: string | null) => {
     const newTask: Partial<Task> = {
       user_id: userId,
       title,
+      description: description || null,
       week_number: weekNumber,
       year: currentYear,
       completed: false,

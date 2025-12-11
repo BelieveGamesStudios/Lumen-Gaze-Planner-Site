@@ -11,7 +11,6 @@ const navItems = [
   { href: "/recurring", label: "Recurring", icon: Repeat },
   { href: "/monthly", label: "Monthly", icon: BarChart3 },
   { href: "/wrapped", label: "Wrapped", icon: Sparkles },
-  { href: "/teams", label: "Teams", icon: Users },
 ]
 
 export function MobileNav() {
