@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase/client"
 import { WeekCard } from "./week-card"
 import { ProgressHeatmap } from "./progress-heatmap"
@@ -43,6 +44,7 @@ export function WeeklyPlannerClient({
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [weeklyCompletions, setWeeklyCompletions] = useState(initialWeeklyCompletions)
   const [isPending, startTransition] = useTransition()
+  const { toast } = useToast()
 
   // Tag dialog state
   const [isTagDialogOpen, setIsTagDialogOpen] = useState(false)
@@ -60,6 +62,40 @@ export function WeeklyPlannerClient({
         total: weekTasks.length,
       }
     })
+
+    // detect newly completed weeks (transition from not-all-complete to all-complete)
+    const prev = weeklyCompletions
+    const newlyCompleted = newCompletions.filter((w, idx) => {
+      const prevWeek = prev[idx]
+      const wasComplete = prevWeek ? prevWeek.completed === prevWeek.total && prevWeek.total > 0 : false
+      const nowComplete = w.total > 0 && w.completed === w.total
+      return !wasComplete && nowComplete
+    })
+
+    if (newlyCompleted.length > 0) {
+      const encouragements = [
+        "Keep going!",
+        "Great momentum!",
+        "Awesome work — you got this!",
+        "Strong start to next week!",
+        "Nice streak — keep it up!",
+      ]
+      newlyCompleted.forEach((w) => {
+        const word = encouragements[Math.floor(Math.random() * encouragements.length)]
+        const message = `Week ${w.week} complete — ${word}`
+        toast({ title: "Week complete", description: message })
+
+        // Broadcast to other parts of the app (header) so it can show in notifications
+        try {
+          const bc = new BroadcastChannel("lumen-notifications")
+          bc.postMessage({ type: "week_complete", payload: { id: `wc-${Date.now()}`, week: w.week, message } })
+          bc.close()
+        } catch (e) {
+          // BroadcastChannel may not be available in some environments; ignore
+        }
+      })
+    }
+
     setWeeklyCompletions(newCompletions)
   }
 

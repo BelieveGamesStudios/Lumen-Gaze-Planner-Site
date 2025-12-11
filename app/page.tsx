@@ -11,7 +11,7 @@ export default function HomePage() {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <CalendarDays className="h-6 w-6 text-accent" />
-            <span className="font-semibold text-lg">52-Week Planner</span>
+            <span className="font-semibold text-lg">Lumen Gaze Planner</span>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/auth/login">

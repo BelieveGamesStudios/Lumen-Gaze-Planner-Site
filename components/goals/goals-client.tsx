@@ -5,9 +5,11 @@ import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Plus, Target, Trash2, Edit2, CheckCircle2 } from "lucide-react"
-import type { YearlyGoal } from "@/lib/types"
+import { Plus, Target, Trash2, Edit2, CheckCircle2, Link2 } from "lucide-react"
+import type { YearlyGoal, Task } from "@/lib/types"
 import { MobileNav } from "@/components/dashboard/mobile-nav"
+import { Checkbox } from "@/components/ui/checkbox"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Dialog,
   DialogContent,
@@ -47,6 +49,9 @@ export function GoalsClient({ initialGoals, currentYear, userId }: GoalsClientPr
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [editingGoal, setEditingGoal] = useState<GoalWithProgress | null>(null)
   const [deleteGoalId, setDeleteGoalId] = useState<string | null>(null)
+  const [linkingGoalId, setLinkingGoalId] = useState<string | null>(null)
+  const [allTasks, setAllTasks] = useState<Task[]>([])
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([])
   const [isPending, startTransition] = useTransition()
 
   // Form state
@@ -129,6 +134,90 @@ export function GoalsClient({ initialGoals, currentYear, userId }: GoalsClientPr
         setGoals((prev) => prev.filter((g) => g.id !== deleteGoalId))
       }
       setDeleteGoalId(null)
+    })
+  }
+
+  const handleToggleGoalComplete = async (goal: GoalWithProgress) => {
+    startTransition(async () => {
+      const newCompleted = goal.progress < 100
+      const { error } = await supabase
+        .from("yearly_goals")
+        .update({
+          completed: newCompleted,
+          completed_at: newCompleted ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", goal.id)
+
+      if (!error) {
+        setGoals((prev) =>
+          prev.map((g) =>
+            g.id === goal.id ? { ...g, progress: newCompleted ? 100 : 0 } : g,
+          ),
+        )
+      }
+    })
+  }
+
+  const handleOpenLinkDialog = async (goalId: string) => {
+    setLinkingGoalId(goalId)
+    setSelectedTaskIds([])
+
+    // Fetch all tasks for the current year
+    startTransition(async () => {
+      const { data } = await supabase
+        .from("tasks")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("year", currentYear)
+
+      if (data) {
+        setAllTasks(data)
+        // Pre-select already-linked tasks for this goal
+        const goal = goals.find((g) => g.id === goalId)
+        if (goal) {
+          const linkedTaskIds = data.filter((t) => t.goal_id === goalId).map((t) => t.id)
+          setSelectedTaskIds(linkedTaskIds)
+        }
+      }
+    })
+  }
+
+  const handleSaveLinkedTasks = async () => {
+    if (!linkingGoalId) return
+
+    startTransition(async () => {
+      // Unlink all tasks for this goal first
+      await supabase.from("tasks").update({ goal_id: null }).eq("goal_id", linkingGoalId)
+
+      // Link selected tasks
+      if (selectedTaskIds.length > 0) {
+        await supabase
+          .from("tasks")
+          .update({ goal_id: linkingGoalId })
+          .in("id", selectedTaskIds)
+      }
+
+      // Update goal's linked task count
+      const linkedCount = selectedTaskIds.length
+      const completedCount = allTasks
+        .filter((t) => selectedTaskIds.includes(t.id) && t.completed)
+        .length
+
+      setGoals((prev) =>
+        prev.map((g) =>
+          g.id === linkingGoalId
+            ? {
+                ...g,
+                linked_tasks: linkedCount,
+                completed_tasks: completedCount,
+                progress: linkedCount > 0 ? Math.round((completedCount / linkedCount) * 100) : 0,
+              }
+            : g,
+        ),
+      )
+
+      setLinkingGoalId(null)
     })
   }
 
@@ -230,6 +319,28 @@ export function GoalsClient({ initialGoals, currentYear, userId }: GoalsClientPr
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => handleOpenLinkDialog(goal.id)}
+                      title="Link tasks to this goal"
+                    >
+                      <Link2 className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => handleToggleGoalComplete(goal)}
+                      title={goal.progress === 100 ? "Mark incomplete" : "Mark complete"}
+                    >
+                      {goal.progress === 100 ? (
+                        <CheckCircle2 className="h-4 w-4 text-primary" />
+                      ) : (
+                        <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(goal)}>
                       <Edit2 className="h-4 w-4 text-muted-foreground" />
                     </Button>
@@ -354,6 +465,57 @@ export function GoalsClient({ initialGoals, currentYear, userId }: GoalsClientPr
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Link Tasks Dialog */}
+      <Dialog open={!!linkingGoalId} onOpenChange={() => setLinkingGoalId(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Link Tasks to Goal</DialogTitle>
+            <DialogDescription>
+              Select tasks to link to this goal. Their completion will contribute to the goal progress.
+            </DialogDescription>
+          </DialogHeader>
+
+          <ScrollArea className="h-96 border rounded-lg p-4">
+            <div className="space-y-2">
+              {allTasks.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No tasks found for this year.</p>
+              ) : (
+                allTasks.map((task) => (
+                  <div key={task.id} className="flex items-center gap-3 p-2 hover:bg-secondary/50 rounded">
+                    <Checkbox
+                      id={`task-${task.id}`}
+                      checked={selectedTaskIds.includes(task.id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedTaskIds((prev) => [...prev, task.id])
+                        } else {
+                          setSelectedTaskIds((prev) => prev.filter((id) => id !== task.id))
+                        }
+                      }}
+                    />
+                    <label htmlFor={`task-${task.id}`} className="flex-1 cursor-pointer text-sm">
+                      <span className={task.completed ? "line-through text-muted-foreground" : ""}>
+                        {task.title}
+                      </span>
+                      <span className="text-xs text-muted-foreground ml-2">Week {task.week_number}</span>
+                    </label>
+                  </div>
+                ))
+              )}
+            </div>
+          </ScrollArea>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLinkingGoalId(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveLinkedTasks} disabled={isPending}>
+              {isPending ? "Saving..." : "Save Links"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <MobileNav />
     </div>

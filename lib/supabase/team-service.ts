@@ -82,9 +82,17 @@ export async function acceptTeamInvitation(invitationId: string) {
 
   if (!invitation) throw new Error("Invitation not found")
 
-  // Verify email matches
-  if (invitation.invited_email !== user.email) {
-    throw new Error("This invitation is not for your email")
+  // Verify invite target: allow match by email OR by invited_display_name matching user's display name
+  const inviteEmail = invitation.invited_email
+  const inviteDisplayName = invitation.invited_display_name
+
+  const userDisplayName = (user.user_metadata && (user.user_metadata as any).display_name) || null
+
+  const emailMatches = inviteEmail && user.email && inviteEmail.toLowerCase() === user.email.toLowerCase()
+  const displayNameMatches = inviteDisplayName && userDisplayName && inviteDisplayName === userDisplayName
+
+  if (!emailMatches && !displayNameMatches) {
+    throw new Error("This invitation is not for your account")
   }
 
   // Add user to team
@@ -112,9 +120,14 @@ export async function rejectTeamInvitation(invitationId: string) {
 
   if (!invitation) throw new Error("Invitation not found")
 
-  // Verify email matches
-  if (invitation.invited_email !== user.email) {
-    throw new Error("This invitation is not for your email")
+  // Verify invite target for rejection as well
+  const inviteEmailR = invitation.invited_email
+  const inviteDisplayNameR = invitation.invited_display_name
+  const emailMatchesR = inviteEmailR && user.email && inviteEmailR.toLowerCase() === user.email.toLowerCase()
+  const displayNameMatchesR = inviteDisplayNameR && userDisplayName && inviteDisplayNameR === userDisplayName
+
+  if (!emailMatchesR && !displayNameMatchesR) {
+    throw new Error("This invitation is not for your account")
   }
 
   // Update invitation
