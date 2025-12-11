@@ -1,0 +1,21 @@
+{
+  "name": "Lumengaze Planner",
+  "short_name": "Lumengaze",
+  "description": "A comprehensive 52-week year planner to track tasks, set goals, and visualize progress.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

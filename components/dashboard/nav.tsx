@@ -1,0 +1,43 @@
+"use client"
+
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { cn } from "@/lib/utils"
+import { CalendarDays, Target, Repeat, BarChart3, Sparkles, Users } from "lucide-react"
+
+const navItems = [
+  { href: "/dashboard", label: "Weekly Planner", icon: CalendarDays },
+  { href: "/goals", label: "Yearly Goals", icon: Target },
+  { href: "/recurring", label: "Recurring Tasks", icon: Repeat },
+  { href: "/monthly", label: "Monthly Overview", icon: BarChart3 },
+  { href: "/wrapped", label: "Year Wrapped", icon: Sparkles },
+  { href: "/teams", label: "Teams", icon: Users },
+]
+
+export function DashboardNav() {
+  const pathname = usePathname()
+
+  return (
+    <nav className="hidden lg:flex flex-col w-56 border-r border-border min-h-[calc(100vh-3.5rem)] p-4 gap-1">
+      {navItems.map((item) => {
+        const Icon = item.icon
+        const isActive = pathname === item.href
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={cn(
+              "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+              isActive
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:text-foreground hover:bg-secondary",
+            )}
+          >
+            <Icon className="h-4 w-4" />
+            {item.label}
+          </Link>
+        )
+      })}
+    </nav>
+  )
+}
