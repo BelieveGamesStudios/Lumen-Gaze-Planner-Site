@@ -53,6 +53,14 @@ export function WeeklyPlannerClient({
 
   const supabase = createClient()
 
+  // Sync incoming data when year changes (full refresh of state)
+  useEffect(() => {
+    setTasks(initialTasks)
+    setTags(initialTags)
+    setWeeklyCompletions(initialWeeklyCompletions)
+    setSelectedTags([])
+  }, [initialTasks, initialTags, initialWeeklyCompletions, currentYear])
+
   // Ensure default tags exist for new users and clean up duplicates
   useEffect(() => {
     const ensureDefaultTags = async () => {
@@ -379,13 +387,20 @@ export function WeeklyPlannerClient({
     tasks: filteredTasks.filter((t) => t.week_number === i + 1),
   }))
 
+  // Determine if the currentYear equals the real calendar year; only then mark current week
+  const realCurrentYear = new Date().getFullYear()
+  const isViewingRealCurrentYear = currentYear === realCurrentYear
+  const displayCurrentWeek = isViewingRealCurrentYear ? currentWeek : null
+
   return (
     <div className="space-y-6 pb-20 lg:pb-0">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">{currentYear} Planner</h1>
-          <p className="text-muted-foreground">Week {currentWeek} of 52</p>
+          <p className="text-muted-foreground">
+            Week {isViewingRealCurrentYear ? currentWeek : "–"} of 52
+          </p>
         </div>
         <Dialog open={isTagDialogOpen} onOpenChange={setIsTagDialogOpen}>
           <DialogTrigger asChild>
@@ -462,7 +477,7 @@ export function WeeklyPlannerClient({
 
       {/* Heatmap */}
       <div className="p-4 border border-border rounded-lg bg-card">
-        <ProgressHeatmap data={weeklyCompletions} currentWeek={currentWeek} />
+        <ProgressHeatmap data={weeklyCompletions} currentWeek={isViewingRealCurrentYear ? currentWeek : undefined} />
       </div>
 
       {/* Tag Filter */}
@@ -482,7 +497,7 @@ export function WeeklyPlannerClient({
             year={currentYear}
             tasks={weekTasks}
             tags={tags}
-            isCurrentWeek={weekNumber === currentWeek}
+            isCurrentWeek={displayCurrentWeek === weekNumber}
             onAddTask={handleAddTask}
             onToggleTask={handleToggleTask}
             onDeleteTask={handleDeleteTask}

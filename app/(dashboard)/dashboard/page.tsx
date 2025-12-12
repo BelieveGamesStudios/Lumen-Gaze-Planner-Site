@@ -2,7 +2,11 @@ import { createClient } from "@/lib/supabase/server"
 import { getCurrentWeek } from "@/lib/utils/date"
 import { WeeklyPlannerClient } from "@/components/dashboard/weekly-planner-client"
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ year?: string }>
+}) {
   const supabase = await createClient()
   const {
     data: { user },
@@ -11,8 +15,12 @@ export default async function DashboardPage() {
   if (!user) return null
 
   const { week: currentWeek, year: currentYear } = getCurrentWeek()
+  const params = await searchParams
+  const requestedYear = params.year ? parseInt(params.year, 10) : NaN
+  const selectedYear = Number.isFinite(requestedYear) ? requestedYear : currentYear
+  const activeWeek = selectedYear === currentYear ? currentWeek : 1
 
-  // Fetch tasks for the current year
+  // Fetch tasks for the selected year
   const { data: tasks } = await supabase
     .from("tasks")
     .select(`
@@ -20,7 +28,7 @@ export default async function DashboardPage() {
       tags:task_tags(tag:tags(*))
     `)
     .eq("user_id", user.id)
-    .eq("year", currentYear)
+    .eq("year", selectedYear)
     .order("sort_order", { ascending: true })
 
   // Fetch tags
@@ -49,11 +57,12 @@ export default async function DashboardPage() {
 
   return (
     <WeeklyPlannerClient
+      key={selectedYear}
       initialTasks={transformedTasks}
       initialTags={tags || []}
       weeklyCompletions={weeklyCompletions}
-      currentWeek={currentWeek}
-      currentYear={currentYear}
+      currentWeek={activeWeek}
+      currentYear={selectedYear}
       userId={user.id}
     />
   )

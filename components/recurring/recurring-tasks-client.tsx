@@ -54,6 +54,12 @@ export function RecurringTasksClient({
 
   const supabase = createClient()
 
+  // Refresh state when year changes / new data is passed
+  useEffect(() => {
+    setRecurringTasks(initialRecurringTasks)
+    setTags(initialTags)
+  }, [initialRecurringTasks, initialTags, currentYear])
+
   const handleCreateRecurringTask = async (
     title: string,
     description: string,

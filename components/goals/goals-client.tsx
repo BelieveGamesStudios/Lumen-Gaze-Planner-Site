@@ -61,6 +61,11 @@ export function GoalsClient({ initialGoals, currentYear, userId }: GoalsClientPr
 
   const supabase = createClient()
 
+  // Refresh goals when year changes
+  useEffect(() => {
+    setGoals(initialGoals)
+  }, [initialGoals, currentYear])
+
   const resetForm = () => {
     setTitle("")
     setDescription("")
