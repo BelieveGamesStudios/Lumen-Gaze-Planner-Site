@@ -215,6 +215,30 @@ export function DashboardHeader({ user }: { user: User }) {
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* User Profile Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="rounded-full" aria-label="User menu">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback>{initials}</AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <div className="p-2">
+                <p className="text-sm font-medium">
+                  {user.user_metadata?.display_name || "User"}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSignOut} variant="destructive">
+                <LogOut className="h-4 w-4" />
+                <span>Log out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>

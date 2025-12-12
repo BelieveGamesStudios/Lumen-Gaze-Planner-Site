@@ -53,18 +53,65 @@ export function WeeklyPlannerClient({
 
   const supabase = createClient()
 
-  // Ensure default tags exist for new users
+  // Ensure default tags exist for new users and clean up duplicates
   useEffect(() => {
     const ensureDefaultTags = async () => {
       try {
-        if (tags.length === 0) {
-          const defaults = [
-            { user_id: userId, name: "Personal", color: "#6366f1", is_personal: true },
-            { user_id: userId, name: "Work", color: "#ef4444", is_personal: false },
-          ]
+        // First, clean up any duplicate default tags (keep the oldest one)
+        const { data: allDefaultTags } = await supabase
+          .from("tags")
+          .select("id, name, created_at")
+          .eq("user_id", userId)
+          .in("name", ["Personal", "Work"])
+          .order("created_at", { ascending: true })
+
+        if (allDefaultTags) {
+          const seenNames = new Set<string>()
+          const duplicatesToDelete: string[] = []
+
+          for (const tag of allDefaultTags) {
+            if (seenNames.has(tag.name)) {
+              // This is a duplicate, mark for deletion
+              duplicatesToDelete.push(tag.id)
+            } else {
+              seenNames.add(tag.name)
+            }
+          }
+
+          // Delete duplicate tags
+          if (duplicatesToDelete.length > 0) {
+            await supabase.from("tags").delete().in("id", duplicatesToDelete)
+          }
+        }
+
+        // Check if default tags exist in the database
+        const { data: existingTags } = await supabase
+          .from("tags")
+          .select("name")
+          .eq("user_id", userId)
+          .in("name", ["Personal", "Work"])
+
+        const existingNames = new Set(existingTags?.map((t) => t.name) || [])
+        const defaults = [
+          { user_id: userId, name: "Personal", color: "#6366f1", is_personal: true },
+          { user_id: userId, name: "Work", color: "#ef4444", is_personal: false },
+        ].filter((tag) => !existingNames.has(tag.name))
+
+        // Only insert tags that don't already exist
+        if (defaults.length > 0) {
           const { data: inserted, error } = await supabase.from("tags").insert(defaults).select()
           if (!error && inserted) {
             setTags((prev) => [...inserted, ...prev])
+          }
+        } else if (allDefaultTags && allDefaultTags.length > 0) {
+          // Refresh tags if we cleaned up duplicates
+          const { data: refreshedTags } = await supabase
+            .from("tags")
+            .select("*")
+            .eq("user_id", userId)
+            .order("name", { ascending: true })
+          if (refreshedTags) {
+            setTags(refreshedTags)
           }
         }
       } catch (e) {
