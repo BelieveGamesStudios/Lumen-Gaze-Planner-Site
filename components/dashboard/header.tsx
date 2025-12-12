@@ -22,6 +22,7 @@ import { createClient } from "@/lib/supabase/client"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import Link from "next/link"
 import { useState } from "react"
+import { OnboardingTour } from "@/components/onboarding/onboarding-tour"
 
 export function DashboardHeader({ user }: { user: User }) {
   const { setTheme, theme } = useTheme()
@@ -121,7 +122,7 @@ export function DashboardHeader({ user }: { user: User }) {
         <div className="flex-1 flex items-center gap-3 mx-4 max-w-2xl">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2">
+              <Button variant="outline" className="gap-2" data-tour-id="year-selector">
                 <CalendarRange className="h-4 w-4" />
                 <span>{selectedYear}</span>
               </Button>
@@ -277,6 +278,7 @@ export function DashboardHeader({ user }: { user: User }) {
           </DropdownMenu>
         </div>
       </div>
+      <OnboardingTour />
     </header>
   )
 }

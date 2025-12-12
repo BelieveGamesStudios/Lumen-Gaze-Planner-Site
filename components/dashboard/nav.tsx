@@ -6,11 +6,11 @@ import { cn } from "@/lib/utils"
 import { CalendarDays, Target, Repeat, BarChart3, Sparkles, Users } from "lucide-react"
 
 const navItems = [
-  { href: "/dashboard", label: "Weekly Planner", icon: CalendarDays },
-  { href: "/goals", label: "Yearly Goals", icon: Target },
-  { href: "/recurring", label: "Recurring Tasks", icon: Repeat },
-  { href: "/monthly", label: "Monthly Overview", icon: BarChart3 },
-  { href: "/wrapped", label: "Year Wrapped", icon: Sparkles },
+  { href: "/dashboard", label: "Weekly Planner", icon: CalendarDays, tourId: "nav-planner" },
+  { href: "/goals", label: "Yearly Goals", icon: Target, tourId: "nav-goals" },
+  { href: "/recurring", label: "Recurring Tasks", icon: Repeat, tourId: "nav-recurring" },
+  { href: "/monthly", label: "Monthly Overview", icon: BarChart3, tourId: "nav-monthly" },
+  { href: "/wrapped", label: "Year Wrapped", icon: Sparkles, tourId: "nav-wrapped" },
 ]
 
 export function DashboardNav() {
@@ -25,6 +25,7 @@ export function DashboardNav() {
           <Link
             key={item.href}
             href={item.href}
+            data-tour-id={item.tourId}
             className={cn(
               "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
               isActive

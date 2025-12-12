@@ -312,6 +312,7 @@ export function WeekCard({
               size="sm"
               className="w-full mt-2 text-muted-foreground"
               onClick={() => setIsAdding(true)}
+              data-tour-id="add-task"
             >
               <Plus className="h-4 w-4 mr-2" />
               Add task

@@ -404,7 +404,7 @@ export function WeeklyPlannerClient({
         </div>
         <Dialog open={isTagDialogOpen} onOpenChange={setIsTagDialogOpen}>
           <DialogTrigger asChild>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" data-tour-id="manage-tags">
               <TagIcon className="h-4 w-4 mr-2" />
               Manage Tags
             </Button>
