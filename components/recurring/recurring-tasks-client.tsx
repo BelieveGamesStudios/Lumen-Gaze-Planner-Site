@@ -75,8 +75,8 @@ export function RecurringTasksClient({
           title,
           description: description || null,
           recurrence_type: recurrenceType,
-          start_week: currentWeek,
-          start_year: currentYear,
+          start_week: 1, // Always start from week 1 of the selected year
+          start_year: currentYear, // currentYear is actually the selected year
           is_active: true,
         })
         .select()
@@ -94,8 +94,8 @@ export function RecurringTasksClient({
         )
       }
 
-      // Generate task instances for the remaining weeks of the year
-      const weeksToGenerate = getWeeksForRecurrence(recurrenceType, currentWeek, currentYear)
+      // Generate task instances for all weeks of the selected year
+      const weeksToGenerate = getWeeksForRecurrence(recurrenceType, currentYear)
 
       const tasksToInsert = weeksToGenerate.map((w) => ({
         user_id: userId,
@@ -185,27 +185,30 @@ export function RecurringTasksClient({
 
   const getWeeksForRecurrence = (
     recurrenceType: "daily" | "weekly" | "biweekly" | "monthly",
-    startWeek: number,
-    startYear: number,
+    selectedYear: number,
   ): { week: number; year: number }[] => {
     const weeks: { week: number; year: number }[] = []
-    let currentW = startWeek
 
-    while (currentW <= 52) {
-      weeks.push({ week: currentW, year: startYear })
-
-      switch (recurrenceType) {
-        case "daily":
-        case "weekly":
-          currentW++
-          break
-        case "biweekly":
-          currentW += 2
-          break
-        case "monthly":
-          currentW += 4
-          break
-      }
+    switch (recurrenceType) {
+      case "daily":
+      case "weekly":
+        // Add to all 52 weeks of the selected year
+        for (let week = 1; week <= 52; week++) {
+          weeks.push({ week, year: selectedYear })
+        }
+        break
+      case "biweekly":
+        // Add to every other week (weeks 1, 3, 5, 7, etc.)
+        for (let week = 1; week <= 52; week += 2) {
+          weeks.push({ week, year: selectedYear })
+        }
+        break
+      case "monthly":
+        // Add to every 4th week (approximately monthly)
+        for (let week = 1; week <= 52; week += 4) {
+          weeks.push({ week, year: selectedYear })
+        }
+        break
     }
 
     return weeks
