@@ -139,26 +139,41 @@ export function WeeklyPlannerClient({
       sort_order: tasks.filter((t) => t.week_number === weekNumber).length,
     }
 
-    startTransition(async () => {
+    try {
+      console.log("Creating task:", newTask)
       const { data, error } = await supabase.from("tasks").insert(newTask).select().single()
 
-      if (!error && data) {
-        // attach tags if provided
-        if (tagIds && tagIds.length > 0) {
-          try {
-            await supabase.from("task_tags").insert(tagIds.map((tagId) => ({ task_id: data.id, tag_id: tagId })))
-          } catch (e) {
-            console.error("Failed to attach tags to task:", e)
-          }
-        }
-
-        // optimistic: include tag objects for the created task based on selected tagIds
-        const attachedTags = tagIds && tagIds.length > 0 ? tags.filter((t) => tagIds?.includes(t.id)) : []
-        const updatedTasks = [...tasks, { ...data, tags: attachedTags }]
-        setTasks(updatedTasks)
-        updateWeeklyCompletions(updatedTasks)
+      if (error) {
+        console.error("Task insert error - Full error object:", JSON.stringify(error, null, 2))
+        console.error("Task insert error - Error message:", error?.message)
+        console.error("Task insert error - Error details:", error?.details)
+        toast({ title: "Failed to create task", description: error?.message || "Unknown error", variant: "destructive" })
+        return
       }
-    })
+
+      console.log("Task created:", data)
+
+      // attach tags if provided
+      if (tagIds && tagIds.length > 0) {
+        try {
+          const tagInserts = tagIds.map((tagId) => ({ task_id: data.id, tag_id: tagId }))
+          console.log("Inserting task tags:", tagInserts)
+          await supabase.from("task_tags").insert(tagInserts)
+        } catch (e) {
+          console.error("Failed to attach tags to task:", e)
+        }
+      }
+
+      // optimistic: include tag objects for the created task based on selected tagIds
+      const attachedTags = tagIds && tagIds.length > 0 ? tags.filter((t) => tagIds?.includes(t.id)) : []
+      const updatedTasks = [...tasks, { ...data, tags: attachedTags }]
+      setTasks(updatedTasks)
+      updateWeeklyCompletions(updatedTasks)
+      toast({ title: "Task created" })
+    } catch (e) {
+      console.error("Unexpected error creating task:", e)
+      toast({ title: "Failed to create task", variant: "destructive" })
+    }
   }
 
   const spawnConfetti = () => {
