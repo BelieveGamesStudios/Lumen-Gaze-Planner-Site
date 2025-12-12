@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Plus, Target, Trash2, Edit2, CheckCircle2, Link2 } from "lucide-react"
+import { Plus, Target, Trash2, Edit2, CheckCircle2, Link2, CalendarRange } from "lucide-react"
 import type { YearlyGoal, Task } from "@/lib/types"
 import { MobileNav } from "@/components/dashboard/mobile-nav"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -38,17 +38,32 @@ interface GoalWithProgress extends YearlyGoal {
   progress: number
 }
 
+interface DecadeGoal {
+  id: string
+  user_id: string
+  title: string
+  description: string | null
+  start_year: number
+  end_year: number
+  created_at?: string
+}
+
 interface GoalsClientProps {
   initialGoals: GoalWithProgress[]
+  initialDecadeGoals: DecadeGoal[]
   currentYear: number
   userId: string
 }
 
-export function GoalsClient({ initialGoals, currentYear, userId }: GoalsClientProps) {
+export function GoalsClient({ initialGoals, initialDecadeGoals, currentYear, userId }: GoalsClientProps) {
   const [goals, setGoals] = useState<GoalWithProgress[]>(initialGoals)
+  const [decadeGoals, setDecadeGoals] = useState<DecadeGoal[]>(initialDecadeGoals)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [isDecadeDialogOpen, setIsDecadeDialogOpen] = useState(false)
   const [editingGoal, setEditingGoal] = useState<GoalWithProgress | null>(null)
+  const [editingDecadeGoal, setEditingDecadeGoal] = useState<DecadeGoal | null>(null)
   const [deleteGoalId, setDeleteGoalId] = useState<string | null>(null)
+  const [deleteDecadeGoalId, setDeleteDecadeGoalId] = useState<string | null>(null)
   const [linkingGoalId, setLinkingGoalId] = useState<string | null>(null)
   const [allTasks, setAllTasks] = useState<Task[]>([])
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([])
@@ -58,18 +73,26 @@ export function GoalsClient({ initialGoals, currentYear, userId }: GoalsClientPr
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [targetValue, setTargetValue] = useState("")
+  const [decadeTitle, setDecadeTitle] = useState("")
+  const [decadeDescription, setDecadeDescription] = useState("")
 
   const supabase = createClient()
 
   // Refresh goals when year changes
   useEffect(() => {
     setGoals(initialGoals)
-  }, [initialGoals, currentYear])
+    setDecadeGoals(initialDecadeGoals)
+  }, [initialGoals, initialDecadeGoals, currentYear])
 
   const resetForm = () => {
     setTitle("")
     setDescription("")
     setTargetValue("")
+  }
+
+  const resetDecadeForm = () => {
+    setDecadeTitle("")
+    setDecadeDescription("")
   }
 
   const handleCreateGoal = async () => {
@@ -92,6 +115,32 @@ export function GoalsClient({ initialGoals, currentYear, userId }: GoalsClientPr
         setGoals([...goals, { ...data, linked_tasks: 0, completed_tasks: 0, progress: 0 }])
         resetForm()
         setIsCreateDialogOpen(false)
+      }
+    })
+  }
+
+  const handleCreateDecadeGoal = async () => {
+    if (!decadeTitle.trim() || decadeGoals.length >= 5) return
+
+    startTransition(async () => {
+      const startYear = currentYear
+      const endYear = currentYear + 10
+      const { data, error } = await supabase
+        .from("decade_goals")
+        .insert({
+          user_id: userId,
+          title: decadeTitle.trim(),
+          description: decadeDescription.trim() || null,
+          start_year: startYear,
+          end_year: endYear,
+        })
+        .select()
+        .single()
+
+      if (!error && data) {
+        setDecadeGoals((prev) => [...prev, data])
+        resetDecadeForm()
+        setIsDecadeDialogOpen(false)
       }
     })
   }
@@ -129,6 +178,29 @@ export function GoalsClient({ initialGoals, currentYear, userId }: GoalsClientPr
     })
   }
 
+  const handleUpdateDecadeGoal = async () => {
+    if (!editingDecadeGoal || !decadeTitle.trim()) return
+
+    startTransition(async () => {
+      const { error, data } = await supabase
+        .from("decade_goals")
+        .update({
+          title: decadeTitle.trim(),
+          description: decadeDescription.trim() || null,
+        })
+        .eq("id", editingDecadeGoal.id)
+        .select()
+        .single()
+
+      if (!error && data) {
+        setDecadeGoals((prev) => prev.map((g) => (g.id === data.id ? data : g)))
+        resetDecadeForm()
+        setEditingDecadeGoal(null)
+        setIsDecadeDialogOpen(false)
+      }
+    })
+  }
+
   const handleDeleteGoal = async () => {
     if (!deleteGoalId) return
 
@@ -139,6 +211,22 @@ export function GoalsClient({ initialGoals, currentYear, userId }: GoalsClientPr
         setGoals((prev) => prev.filter((g) => g.id !== deleteGoalId))
       }
       setDeleteGoalId(null)
+    })
+  }
+
+  const handleDeleteDecadeGoal = async () => {
+    if (!deleteDecadeGoalId) return
+
+    startTransition(async () => {
+      try {
+        const { error } = await supabase.from("decade_goals").delete().eq("id", deleteDecadeGoalId)
+        if (!error) {
+          setDecadeGoals((prev) => prev.filter((g) => g.id !== deleteDecadeGoalId))
+          setDeleteDecadeGoalId(null)
+        }
+      } catch (e) {
+        console.error(e)
+      }
     })
   }
 
@@ -233,6 +321,13 @@ export function GoalsClient({ initialGoals, currentYear, userId }: GoalsClientPr
     setEditingGoal(goal)
   }
 
+  const openEditDecadeDialog = (goal: DecadeGoal) => {
+    setDecadeTitle(goal.title)
+    setDecadeDescription(goal.description || "")
+    setEditingDecadeGoal(goal)
+    setIsDecadeDialogOpen(true)
+  }
+
   const completedGoals = goals.filter((g) => g.progress === 100).length
   const overallProgress =
     goals.length > 0 ? Math.round(goals.reduce((acc, g) => acc + g.progress, 0) / goals.length) : 0
@@ -290,6 +385,58 @@ export function GoalsClient({ initialGoals, currentYear, userId }: GoalsClientPr
           </CardContent>
         </Card>
       </div>
+
+      {/* 10-Year Plan */}
+      <Card>
+        <CardHeader className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle className="text-xl font-semibold">10-Year Plan</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Long-term goals spanning a decade. New goals use the currently viewed year as the start year.
+            </p>
+          </div>
+          {decadeGoals.length < 5 && (
+            <Button onClick={() => setIsDecadeDialogOpen(true)}>
+              <CalendarRange className="h-4 w-4 mr-2" />
+              Add 10-Year Goal
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {decadeGoals.length === 0 ? (
+            <div className="text-sm text-muted-foreground">No decade goals yet. Add up to 5 long-term goals.</div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {decadeGoals.map((goal) => (
+                <div key={goal.id} className="rounded-lg border border-border p-4 space-y-2 bg-card/50">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="font-semibold">{goal.title}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {goal.start_year}–{goal.end_year}
+                      </div>
+                      {goal.description && <p className="text-sm text-muted-foreground mt-1">{goal.description}</p>}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDecadeDialog(goal)}>
+                        <Edit2 className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setDeleteDecadeGoalId(goal.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Goals List */}
       {goals.length === 0 ? (
@@ -375,6 +522,73 @@ export function GoalsClient({ initialGoals, currentYear, userId }: GoalsClientPr
           ))}
         </div>
       )}
+
+      {/* Create/Edit Decade Goal Dialog */}
+      <Dialog open={isDecadeDialogOpen} onOpenChange={setIsDecadeDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingDecadeGoal ? "Edit 10-Year Goal" : "Create 10-Year Goal"}</DialogTitle>
+            <DialogDescription>Plan a long-term goal spanning a full decade.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="decadeTitle">Title</Label>
+              <Input
+                id="decadeTitle"
+                value={decadeTitle}
+                onChange={(e) => setDecadeTitle(e.target.value)}
+                placeholder="e.g., Become a staff engineer, Publish a book"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="decadeDescription">Description (optional)</Label>
+              <Textarea
+                id="decadeDescription"
+                value={decadeDescription}
+                onChange={(e) => setDecadeDescription(e.target.value)}
+                placeholder="Outline the milestones you want to achieve over the decade."
+              />
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Start year: {editingDecadeGoal?.start_year ?? currentYear} · End year:{" "}
+              {editingDecadeGoal?.end_year ?? currentYear + 10}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDecadeDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={editingDecadeGoal ? handleUpdateDecadeGoal : handleCreateDecadeGoal}
+              disabled={isPending || !decadeTitle.trim() || decadeGoals.length >= 5}
+            >
+              {isPending ? "Saving..." : editingDecadeGoal ? "Save Changes" : "Create 10-Year Goal"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Decade Goal Confirmation */}
+      <AlertDialog open={!!deleteDecadeGoalId} onOpenChange={() => setDeleteDecadeGoalId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete 10-Year Goal</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove the 10-year goal and its decade range. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={handleDeleteDecadeGoal}
+              disabled={isPending}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Create/Edit Dialog */}
       <Dialog

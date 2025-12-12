@@ -2,7 +2,11 @@ import { createClient } from "@/lib/supabase/server"
 import { getCurrentWeek, getMonthFromWeek } from "@/lib/utils/date"
 import { MonthlyOverviewClient } from "@/components/monthly/monthly-overview-client"
 
-export default async function MonthlyPage() {
+export default async function MonthlyPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ year?: string }>
+}) {
   const supabase = await createClient()
   const {
     data: { user },
@@ -11,6 +15,9 @@ export default async function MonthlyPage() {
   if (!user) return null
 
   const { year: currentYear } = getCurrentWeek()
+  const params = await searchParams
+  const requestedYear = params.year ? parseInt(params.year, 10) : NaN
+  const selectedYear = Number.isFinite(requestedYear) ? requestedYear : currentYear
 
   // Fetch all tasks for the year
   const { data: tasks } = await supabase
@@ -20,7 +27,7 @@ export default async function MonthlyPage() {
       tags:task_tags(tag:tags(*))
     `)
     .eq("user_id", user.id)
-    .eq("year", currentYear)
+    .eq("year", selectedYear)
 
   // Fetch tags
   const { data: tags } = await supabase
@@ -42,7 +49,7 @@ export default async function MonthlyPage() {
   const monthlyStats = monthNames.map((name, monthIndex) => {
     // Find tasks for this month (based on week_number)
     const monthTasks = transformedTasks.filter((t) => {
-      const taskMonth = getMonthFromWeek(t.week_number, currentYear)
+      const taskMonth = getMonthFromWeek(t.week_number, selectedYear)
       return taskMonth === monthIndex
     })
 
@@ -84,5 +91,5 @@ export default async function MonthlyPage() {
     }
   })
 
-  return <MonthlyOverviewClient monthlyStats={monthlyStats} currentYear={currentYear} />
+  return <MonthlyOverviewClient monthlyStats={monthlyStats} currentYear={selectedYear} />
 }

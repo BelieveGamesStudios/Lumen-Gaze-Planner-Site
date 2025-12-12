@@ -36,7 +36,7 @@ export function MonthlyOverviewClient({ monthlyStats, currentYear }: MonthlyOver
     <div className="space-y-6 pb-20 lg:pb-0">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold">Monthly Overview</h1>
+        <h1 className="text-2xl font-bold">{currentYear} Monthly Overview</h1>
         <p className="text-muted-foreground">{currentYear} progress by month</p>
       </div>
 

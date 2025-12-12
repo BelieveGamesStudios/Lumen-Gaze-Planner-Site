@@ -5,10 +5,11 @@ import { SearchResultsClient } from "@/components/search/search-results-client"
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>
+  searchParams: Promise<{ q?: string; year?: string }>
 }) {
   const params = await searchParams
   const query = params.q || ""
+  const requestedYear = params.year ? parseInt(params.year, 10) : NaN
 
   const supabase = await createClient()
   const {
@@ -18,6 +19,7 @@ export default async function SearchPage({
   if (!user) return null
 
   const { year: currentYear } = getCurrentWeek()
+  const selectedYear = Number.isFinite(requestedYear) ? requestedYear : currentYear
 
   // Fetch tags for filtering
   const { data: tags } = await supabase
@@ -46,6 +48,7 @@ export default async function SearchPage({
       `)
       .eq("user_id", user.id)
       .ilike("title", `%${query}%`)
+      .eq("year", selectedYear)
       .order("week_number", { ascending: true })
 
     tasks =
@@ -55,5 +58,5 @@ export default async function SearchPage({
       })) || []
   }
 
-  return <SearchResultsClient query={query} tasks={tasks} tags={tags || []} currentYear={currentYear} />
+  return <SearchResultsClient query={query} tasks={tasks} tags={tags || []} currentYear={selectedYear} />
 }

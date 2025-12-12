@@ -2,7 +2,11 @@ import { createClient } from "@/lib/supabase/server"
 import { getCurrentWeek } from "@/lib/utils/date"
 import { RecurringTasksClient } from "@/components/recurring/recurring-tasks-client"
 
-export default async function RecurringPage() {
+export default async function RecurringPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ year?: string }>
+}) {
   const supabase = await createClient()
   const {
     data: { user },
@@ -11,6 +15,9 @@ export default async function RecurringPage() {
   if (!user) return null
 
   const { week: currentWeek, year: currentYear } = getCurrentWeek()
+  const params = await searchParams
+  const requestedYear = params.year ? parseInt(params.year, 10) : NaN
+  const selectedYear = Number.isFinite(requestedYear) ? requestedYear : currentYear
 
   // Fetch recurring tasks with their tags
   const { data: recurringTasks } = await supabase
@@ -20,6 +27,7 @@ export default async function RecurringPage() {
       tags:recurring_task_tags(tag:tags(*))
     `)
     .eq("user_id", user.id)
+    .eq("start_year", selectedYear)
     .order("created_at", { ascending: false })
 
   // Fetch all task instances for these recurring tasks
@@ -30,6 +38,7 @@ export default async function RecurringPage() {
       task:tasks(*)
     `)
     .eq("task.user_id", user.id)
+    .eq("task.year", selectedYear)
 
   // Fetch tags
   const { data: tags } = await supabase
@@ -59,7 +68,7 @@ export default async function RecurringPage() {
       initialRecurringTasks={transformedRecurringTasks}
       initialTags={tags || []}
       currentWeek={currentWeek}
-      currentYear={currentYear}
+      currentYear={selectedYear}
       userId={user.id}
     />
   )

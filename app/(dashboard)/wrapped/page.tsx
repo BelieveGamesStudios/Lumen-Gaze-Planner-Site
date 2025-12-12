@@ -3,7 +3,11 @@ import { getCurrentWeek } from "@/lib/utils/date"
 import { WrappedClient } from "@/components/wrapped/wrapped-client"
 import type { WrappedData, Tag } from "@/lib/types"
 
-export default async function WrappedPage() {
+export default async function WrappedPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ year?: string }>
+}) {
   const supabase = await createClient()
   const {
     data: { user },
@@ -12,6 +16,9 @@ export default async function WrappedPage() {
   if (!user) return null
 
   const { year: currentYear } = getCurrentWeek()
+  const params = await searchParams
+  const requestedYear = params.year ? parseInt(params.year, 10) : NaN
+  const selectedYear = Number.isFinite(requestedYear) ? requestedYear : currentYear
 
   // Fetch all tasks for the year
   const { data: tasks } = await supabase
@@ -21,11 +28,11 @@ export default async function WrappedPage() {
       tags:task_tags(tag:tags(*))
     `)
     .eq("user_id", user.id)
-    .eq("year", currentYear)
+    .eq("year", selectedYear)
     .order("week_number", { ascending: true })
 
   // Fetch goals
-  const { data: goals } = await supabase.from("yearly_goals").select("*").eq("user_id", user.id).eq("year", currentYear)
+  const { data: goals } = await supabase.from("yearly_goals").select("*").eq("user_id", user.id).eq("year", selectedYear)
 
   // Transform tasks
   const transformedTasks =
@@ -117,7 +124,7 @@ export default async function WrappedPage() {
   if (topTags.length >= 5) badges.push("Well Rounded")
 
   const wrappedData: WrappedData = {
-    year: currentYear,
+    year: selectedYear,
     totalTasksCompleted,
     totalTasksCreated,
     completionRate,

@@ -2,7 +2,11 @@ import { createClient } from "@/lib/supabase/server"
 import { getCurrentWeek } from "@/lib/utils/date"
 import { GoalsClient } from "@/components/goals/goals-client"
 
-export default async function GoalsPage() {
+export default async function GoalsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ year?: string }>
+}) {
   const supabase = await createClient()
   const {
     data: { user },
@@ -11,13 +15,16 @@ export default async function GoalsPage() {
   if (!user) return null
 
   const { year: currentYear } = getCurrentWeek()
+  const params = await searchParams
+  const requestedYear = params.year ? parseInt(params.year, 10) : NaN
+  const selectedYear = Number.isFinite(requestedYear) ? requestedYear : currentYear
 
   // Fetch yearly goals
   const { data: goals } = await supabase
     .from("yearly_goals")
     .select("*")
     .eq("user_id", user.id)
-    .eq("year", currentYear)
+    .eq("year", selectedYear)
     .order("created_at", { ascending: true })
 
   // Fetch tasks linked to goals
@@ -25,8 +32,15 @@ export default async function GoalsPage() {
     .from("tasks")
     .select("*")
     .eq("user_id", user.id)
-    .eq("year", currentYear)
+    .eq("year", selectedYear)
     .not("goal_id", "is", null)
+
+  // Fetch decade goals (10-year plan), not filtered by selected year
+  const { data: decadeGoals } = await supabase
+    .from("decade_goals")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: true })
 
   // Calculate progress for each goal
   const goalsWithProgress =
@@ -41,5 +55,12 @@ export default async function GoalsPage() {
       }
     }) || []
 
-  return <GoalsClient initialGoals={goalsWithProgress} currentYear={currentYear} userId={user.id} />
+  return (
+    <GoalsClient
+      initialGoals={goalsWithProgress}
+      initialDecadeGoals={decadeGoals || []}
+      currentYear={selectedYear}
+      userId={user.id}
+    />
+  )
 }

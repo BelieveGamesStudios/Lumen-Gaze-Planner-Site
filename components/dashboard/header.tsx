@@ -38,7 +38,9 @@ export function DashboardHeader({ user }: { user: User }) {
   const selectedYear = selectedYearParam && !Number.isNaN(parseInt(selectedYearParam, 10))
     ? parseInt(selectedYearParam, 10)
     : thisYear
-  const availableYears = Array.from({ length: 5 }, (_, i) => thisYear - 1 + i)
+  const startYear = Math.min(thisYear - 1, 2018)
+  const endYear = 2040
+  const availableYears = Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i)
 
   useEffect(() => {
     const fetchInvites = async () => {
